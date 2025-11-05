@@ -1,0 +1,5 @@
+cadena=input("Dime una cadena:")
+palabras = cadena.split()
+palabras.reverse()
+res = " ".join(palabras)
+print(res)

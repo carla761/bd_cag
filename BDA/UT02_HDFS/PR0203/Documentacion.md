@@ -1,4 +1,4 @@
-# PR0202: Uso del cliente HDFS (2)
+# PR0203: Uso del cliente HDFS (2)
 1. Preparación el espacio de trabajo en HDFS
 
 - Crea un directorio principal /proyectos/ecommerce en HDFS.

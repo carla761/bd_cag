@@ -1,10 +1,5 @@
 # SISTEMAS DE BIG DATA
 ## UT02: Almacenamiento de datos
 
-- [PR0201: Cadenas en Redis](./PR0201/Documentacion.md)
-- [PR0202: Listas en Redis](./PR0202/Documentacion.md)
-- [PR0203: Estructuras avanzadas de Redis](./PR0203/Documentacion.md)
-- [PR0204: Datos geoespaciales en Redis](./PR0204/Documentacion.md)
-- [PR0205: Escritura de datos en InfluxDB](./PR0205/Documentacion.md)
-- [PR0206: Ingesta de datos financieros en InfluxDB](./PR0206/Documentacion.md)
-- [PR0207: Consultas con Flux](./PR0207/Documentacion.md)
+- [PR0301: Ingesta de datos de archivos CSV, JSON y Excel (I)	](./PR0301/Documentacion.md)
+- [PR0302: Ingesta de datos de archivos CSV, JSON y Excel (II)	](./PR0302/Documentacion.md)

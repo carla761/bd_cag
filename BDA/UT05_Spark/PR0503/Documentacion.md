@@ -86,23 +86,22 @@ Necesitamos un código único para cada registro que sirva como clave primaria. 
 
 
 ```python
-from pyspark.sql.functions import col,upper,concat_ws,lit,lpad
+from pyspark.sql.functions import col,upper,concat_ws,lit,lpad,split,concat
 df_eng = (df_crop
-              .withColumn("Region",substring(df_crop.Region,8,3))
-              .withColumn("Region", lpad("Region",3,"X"))
+              .withColumn("Region",lpad(split(col("Region"),'_')[1], 3, 'X'))
               .withColumn("Crop",upper(col("Crop")))
-              .withColumn("Crop_ID", concat_ws("-",lit("CODIGO"),col("Region"),col("Crop")))
+              .withColumn("Crop_ID", concat(lit("CODIGO_"),col("Region"),lit("-"),col("Crop")))
               .select("Region","Crop","Crop_ID")
          )
 df_eng.show(3)
-```
+``` 
 
     +------+------+-----------------+
     |Region|  Crop|          Crop_ID|
     +------+------+-----------------+
-    |   XXC| MAIZE| CODIGO-XXC-MAIZE|
-    |   XXD|BARLEY|CODIGO-XXD-BARLEY|
-    |   XXC|  RICE|  CODIGO-XXC-RICE|
+    |   XXC| MAIZE| CODIGO_XXC-MAIZE|
+    |   XXD|BARLEY|CODIGO_XXD-BARLEY|
+    |   XXC|  RICE|  CODIGO_XXC-RICE|
     +------+------+-----------------+
     only showing top 3 rows
     

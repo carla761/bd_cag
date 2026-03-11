@@ -1,8 +1,9 @@
-# PR0504B. Limpieza de datos sobre dataset de lugares famosos
+# PR0505. Análisis de estadísticas en dataset
 
-Vamos a trabajar con el dataset del portal de datos abiertos de Turismo de Castilla y León. El archivo contiene información sobre alojamientos, bares y restaurantes. Sin embargo, la calidad de los datos es deficiente: hay inconsistencias en mayúsculas/minúsculas, valores nulos, formatos de coordenadas mezclados y columnas redundantes.
+En esta práctica trabajarás sobre [este dataset](https://www.kaggle.com/datasets/juhibhojani/house-price) que contiene precios de casas en la India. 
 
-Debes utilizar **PySpark** para ingestar, limpiar, normalizar y estructurar estos datos para su posterior análisis en un Dashboard.
+Dado que es un dataset local con formatos regionales (Rupias, Lakhs, Crores, pies cuadrados), deberás transformarlo a un estándar internacional (dólares USD y metros cuadrados) para poder realizar un análisis estadístico comparativo y preparar los *features* para el entrenamiento del modelo.
+
 
 
 
@@ -17,612 +18,610 @@ spark = ( SparkSession.builder
 print("SparkSession iniciada correctamente.")
 ```
 
-    Setting default log level to "WARN".
-    To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
-    26/02/12 08:41:13 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
-
-
     SparkSession iniciada correctamente.
 
 
-    26/02/12 08:41:33 WARN GarbageCollectionMetrics: To enable non-built-in garbage collector(s) List(G1 Concurrent GC), users should configure it(them) to spark.eventLog.gcMetrics.youngGenerationGarbageCollectors or spark.eventLog.gcMetrics.oldGenerationGarbageCollectors
+## 1. Objetivos de ingeniería de datos (ETL)
 
-
-## 2. Ingesta de datos
-
-El fichero original es un **CSV** (o archivo de texto plano). Debes cargarlo en un `DataFrame` teniendo en cuenta:
-
-* **Delimitador:** Punto y coma (`;`).
-* **Cabecera:** La primera fila contiene los nombres de las columnas.
-* **Codificación:** Asegúrate de que se lean correctamente los acentos (UTF-8 o ISO-8859-1 según corresponda).
-
+Antes de cualquier análisis, debe ejecutar un pipeline de transformación sobre los datos crudos.
 
 
 ```python
-from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType, LongType
-
-schema_cyl = StructType([
-    StructField("establecimiento", StringType(), True),
-    StructField("n_registro", StringType(), True),
-    StructField("codigo", StringType(), True),
-    StructField("tipo", StringType(), True),
-    StructField("categoria", StringType(), True),
-    StructField("especialidades", StringType(), True),
-    StructField("clase", StringType(), True),
-    StructField("nombre", StringType(), True),
-    StructField("direccion", StringType(), True),
-    StructField("c_postal", StringType(), True),
-    StructField("provincia", StringType(), True),
-    StructField("municipio", StringType(), True),
-    StructField("localidad", StringType(), True),
-    StructField("nucleo", StringType(), True),
-    StructField("telefono_1", LongType(), True),
-    StructField("telefono_2", LongType(), True),
-    StructField("telefono_3", LongType(), True),
-    StructField("email", StringType(), True),
-    StructField("web", StringType(), True),
-    StructField("q_calidad", StringType(), True),
-    StructField("posada_real", StringType(), True),
-    StructField("plazas", IntegerType(), True),
-    StructField("gps_longitud", DoubleType(), True),
-    StructField("gps_latitud", DoubleType(), True),
-    StructField("accesible_a_personas_con_discapacidad", StringType(), True),
-    StructField("column_27", StringType(), True),
-    StructField("posicion", StringType(), True)
-])
-
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+schema_hs = StructType([
+        StructField("Index", IntegerType(), False),
+        StructField("Title", StringType(), False),
+        StructField("Description", StringType(), False),
+        StructField("Amount(in rupees)", StringType(), True),
+        StructField("Price(in rupees)", StringType(), True),
+        StructField("Location", StringType(), False),
+        StructField("Carpet_Area", StringType(), True),
+        StructField("Status", StringType(), False),
+        StructField("Floor", StringType(), False),
+        StructField("Transaction", StringType(), False),
+        StructField("Furnishing", IntegerType(), False),
+        StructField("Facing", StringType(), True),
+        StructField("Overlooking", StringType(), True),
+        StructField("Society", StringType(), True),
+        StructField("Bathroom", IntegerType(), False),
+        StructField("Balcony", IntegerType(), True),
+        StructField("Car_Parking", StringType(), True),
+        StructField("Ownership", StringType(), True),
+        StructField("Super_Area", StringType(), True),
+    ])
 ```
 
 
 ```python
-df_cyl = ( spark.read
+df_house = ( spark.read
                 .format("csv")
-                .schema(schema_cyl)
+                .schema(schema_hs)
                 .option("header", "true")
-                .option("sep", ";")
-                .option("encoding",'UTF-8')
-                .load("./registro-de-turismo-de-castilla-y-leon.csv")
+                .load("./house_prices.csv")
            )
-df_cyl.show(3)
+df_house.show(3)
 ```
 
-    26/02/12 08:41:39 WARN SparkStringUtils: Truncated the string representation of a plan since it was too large. This behavior can be adjusted by setting 'spark.sql.debug.maxToStringFields'.
+    [Stage 87:>                                                         (0 + 1) / 1]
+
+    +-----+--------------------+--------------------+-----------------+----------------+--------+-----------+-------------+------------+-----------+----------+------+-----------+--------------------+--------+-------+-----------+---------+----------+
+    |Index|               Title|         Description|Amount(in rupees)|Price(in rupees)|Location|Carpet_Area|       Status|       Floor|Transaction|Furnishing|Facing|Overlooking|             Society|Bathroom|Balcony|Car_Parking|Ownership|Super_Area|
+    +-----+--------------------+--------------------+-----------------+----------------+--------+-----------+-------------+------------+-----------+----------+------+-----------+--------------------+--------+-------+-----------+---------+----------+
+    |    0|1 BHK Ready to Oc...|Bhiwandi, Thane h...|          42 Lac |            6000|   thane|   500 sqft|Ready to Move|10 out of 11|     Resale|      NULL|  NULL|       NULL|Srushti Siddhi Ma...|       1|      2|       NULL|     NULL|      NULL|
+    |    1|2 BHK Ready to Oc...|One can find this...|          98 Lac |           13799|   thane|   473 sqft|Ready to Move| 3 out of 22|     Resale|      NULL|  East|Garden/Park|         Dosti Vihar|       2|   NULL|     1 Open| Freehold|      NULL|
+    |    2|2 BHK Ready to Oc...|Up for immediate ...|         1.40 Cr |           17500|   thane|   779 sqft|Ready to Move|10 out of 29|     Resale|      NULL|  East|Garden/Park|Sunrise by Kalpataru|       2|   NULL|  1 Covered| Freehold|      NULL|
+    +-----+--------------------+--------------------+-----------------+----------------+--------+-----------+-------------+------------+-----------+----------+------+-----------+--------------------+--------+-------+-----------+---------+----------+
+    only showing top 3 rows
+    
+
+
                                                                                     
 
-    +--------------------+----------+------+--------------------+-----------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|  categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|telefono_1|telefono_2|telefono_3|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|column_27|            posicion|
-    +--------------------+----------+------+--------------------+-----------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|       NULL|          NULL| NULL|BERNARDO MORO MEN...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|POLA DE SOMIEDO|POLA DE SOMIEDO| 616367277|      NULL|      NULL|bernardomoro@hotm...|                NULL|     NULL|       NULL|  NULL|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|3 Estrellas|          NULL| NULL|        LA SASTRERÍA|Calle VEINTIOCHO ...|   05296|    Ávila|  Adanero|        ADANERO|        ADANERO| 920307158| 606945069| 609289521|                NULL|www.lasastreriade...|     NULL|       NULL|     6|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|4 Estrellas|          NULL| NULL|         LAS HAZANAS|       Plaza MAYOR 4|   05296|    Ávila|  Adanero|        ADANERO|        ADANERO| 655099974|      NULL|      NULL|lashazanas@hotmai...|                NULL|     NULL|       NULL|     8|  -4.6033331| 40.9438881|                                 NULL|     NULL|40.9438881, -4.60...|
-    +--------------------+----------+------+--------------------+-----------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
+### 1.1. Estandarización monetaria (de INR a USD)
+
+Las columnas `Amount(in rupees)` y `Price (in rupees)` vienen en formato de texto con unidades indias (*Lac* y *Cr*).
+
+1. **Limpieza:** convierte los textos a valores numéricos puros en rupias (INR). Ten en cuenta que 1 Lac = 100,000 INR y 1 Cr = 10,000,000 INR.
+
+
+2. **Conversión:** crea una nueva columna `Amount_USD` convirtiendo las rupias a dólares. Asume que el valor de conversión es 1 INR = 0.012 USD.
+
+
+
+```python
+df_house.select("Amount(in rupees)","Price(in rupees)").show(3)
+```
+
+    +-----------------+----------------+
+    |Amount(in rupees)|Price(in rupees)|
+    +-----------------+----------------+
+    |          42 Lac |            6000|
+    |          98 Lac |           13799|
+    |         1.40 Cr |           17500|
+    +-----------------+----------------+
     only showing top 3 rows
     
-
-
-## 3. Instrucciones de transformación por campo
-
-A continuación se detallan las reglas de negocio que debes aplicar columna por columna. Debes aplicar estas transformaciones usando las funciones de `pyspark.sql.functions`.
-
-
-### A. Identificación y categorización
-
-| Campo original        | Transformación requerida |
-| --------------------- | --- |
-| **`establecimiento`** | Convertir a **Title Case** (primera letra mayúscula, resto minúscula). Eliminar espacios en blanco al inicio y final. |
-| **`n_registro`**      | Clave primaria. Eliminar espacios. Si es nulo, eliminar la fila completa (integridad referencial). |
-| **`tipo`**            | Limpieza de prefijos. Algunos valores vienen como "p - Actividades..." o "n - Oficinas...". Debes **eliminar los prefijos** "x - " para dejar solo la descripción limpia. |
-| **`categoria`**       | Normalización. <br>1. Reemplazar "Categoría única" por "Unica".<br>2. Si contiene "Estrellas" o "Llaves", intentar extraer solo el número (ej: "2 Estrellas"  "2"). Mantener como String. |
 
 
 
 ```python
 from pyspark.sql import functions as F
-from pyspark.sql.functions import col
 
-df_A = (
-    df_cyl
-
-        # Limpia el nombre del establecimiento:
-        # - trim() elimina espacios al inicio y final
-        # - initcap() pone la primera letra de cada palabra en mayúscula
-        .withColumn('establecimiento', F.initcap(F.trim(F.col('establecimiento'))))
-
-        # Limpia la clave primaria eliminando espacios
-        .withColumn('n_registro', F.trim(F.col('n_registro')))
-
-        # Elimina filas donde n_registro sea nulo o vacío (integridad referencial)
-        .filter(col('n_registro').isNotNull() & (col('n_registro') != ""))
-
-        # Limpia el campo tipo:
-        # elimina prefijos como "p - ", "n - ", "x - "
-            #   r""        -> cadena cruda
-            #   ^          -> inicio de la cadena
-            #   [a-zA-Z]   -> una letra
-            #   \s*        -> cero o más espacios
-            #   -          -> un guion literal
-            #   \s*        -> cero o más espacios
-        .withColumn(
-            'tipo',
-            F.trim(F.regexp_replace(F.col("tipo"), r"^[a-zA-Z]\s*-\s*", ""))
+df_monetario = (
+    df_house
+    # Convertir Amount(in rupees)
+    .withColumn(
+        "Amount_INR",
+        F.when(
+            F.col("Amount(in rupees)").contains("Lac"), 
+            # F.col("Amount(in rupees)").rlike("(?i)Lac"),
+            F.regexp_replace(F.col("Amount(in rupees)"), " Lac", "").cast("double") * 100000 
+            # F.regexp_extract(F.col("Amount(in rupees)"), r"([\d\.]+)", 1).cast("double") * 100000
         )
-
-        # Normaliza la categoría única:
-        # Reemplaza exactamente "Categoría única" por "Unica"
-        .withColumn(
-            'categoria',
-            F.regexp_replace(F.col('categoria'), "Categoría única", "Unica")
+        .when(
+            F.col("Amount(in rupees)").contains("Cr"),
+            F.regexp_replace(F.col("Amount(in rupees)"), " Cr", "").cast("double") * 10000000
         )
-
-        # Extrae solo el número si la categoría contiene "Estrellas" o "Llaves":
-        # - rlike() detecta si aparece alguna de esas palabras (ignorando mayúsculas)
-        # - regexp_extract() extrae el número (\d+)
-        # - otherwise() deja el valor original si no coincide
-        .withColumn(
-            'categoria',
-            F.when(
-                F.col('categoria').rlike(r"(?i)(estrellas|llaves)"),
-                F.regexp_extract(F.col('categoria'), r"(\d+)", 1)
-            ).otherwise(F.col('categoria'))
-        )
-
-        # Selecciona las columnas
-        #.select('establecimiento', 'n_registro', 'tipo', 'categoria')
+        .otherwise(F.col("Amount(in rupees)").cast("double"))
+    )
+    
+    # Conversión a USD
+    .withColumn("Amount_USD", F.round(F.col("Amount_INR") * F.lit(0.012),2))
+    .withColumn("Price_USD", F.round(F.col("Price(in rupees)") * F.lit(0.012),2))
 )
 
-df_A.show(3)
 
 ```
 
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|telefono_1|telefono_2|telefono_3|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|column_27|            posicion|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|     NULL|          NULL| NULL|BERNARDO MORO MEN...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|POLA DE SOMIEDO|POLA DE SOMIEDO| 616367277|      NULL|      NULL|bernardomoro@hotm...|                NULL|     NULL|       NULL|  NULL|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|        3|          NULL| NULL|        LA SASTRERÍA|Calle VEINTIOCHO ...|   05296|    Ávila|  Adanero|        ADANERO|        ADANERO| 920307158| 606945069| 609289521|                NULL|www.lasastreriade...|     NULL|       NULL|     6|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|        4|          NULL| NULL|         LAS HAZANAS|       Plaza MAYOR 4|   05296|    Ávila|  Adanero|        ADANERO|        ADANERO| 655099974|      NULL|      NULL|lashazanas@hotmai...|                NULL|     NULL|       NULL|     8|  -4.6033331| 40.9438881|                                 NULL|     NULL|40.9438881, -4.60...|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
+
+```python
+df_monetario.select(
+     "Amount(in rupees)", "Amount_INR", "Amount_USD",
+     "Price(in rupees)", "Price_USD"
+).show(3)
+```
+
+    +-----------------+----------+----------+----------------+---------+
+    |Amount(in rupees)|Amount_INR|Amount_USD|Price(in rupees)|Price_USD|
+    +-----------------+----------+----------+----------------+---------+
+    |          42 Lac | 4200000.0|   50400.0|            6000|     72.0|
+    |          98 Lac | 9800000.0|  117600.0|           13799|   165.59|
+    |         1.40 Cr |     1.4E7|  168000.0|           17500|    210.0|
+    +-----------------+----------+----------+----------------+---------+
     only showing top 3 rows
     
 
 
-### B. Datos del negocio
+### 1.2. Estandarización de superficie
 
-| Campo original                            | Transformación requerida |
-| ----------------------------------------- | --- |
-| **`nombre`**                              | Convertir a **Title Case**. Eliminar espacios dobles dentro del texto (ej: "Rio  Somiedo"  "Rio Somiedo"). |
-| **`direccion`**                           | Convertir a **Title Case**. Intenta reemplazar abreviaturas comunes (ej: "C/" por "Calle", "Avda." por "Avenida"), si no, solo normalizar espacios y capitalización. |
-| **`c_postal`**                            | Asegurar que sea un **String** de 5 caracteres. Si tiene menos de 5, rellenar con ceros a la izquierda . |
-| **`provincia`, `municipio`, `localidad`** | Convertir a **Title Case**. Eliminar espacios. |
-| **`nucleo`**                              | Si `nucleo` es nulo o vacío, rellenarlo con el valor de la columna `localidad`. |
+La columna `Carpet Area` está en pies cuadrados (*sqft*).
+
+1. **Limpieza:** elimina las unidades textuales y extrae el valor numérico.
+2. **Conversión:** crea una nueva columna `Area_m2` convirtiendo los pies cuadrados a metros cuadrados. El factor de conversión es 1 sqft = 0.0929.
+
 
 
 
 ```python
-from pyspark.sql import functions as F
-from pyspark.sql.functions import col
+df_prueba=(df_house
+                .select("Carpet_Area")
+          )
+df_prueba.show(3)
+```
 
-df_B = (
-    df_A
+    +-----------+
+    |Carpet_Area|
+    +-----------+
+    |   500 sqft|
+    |   473 sqft|
+    |   779 sqft|
+    +-----------+
+    only showing top 3 rows
+    
 
-        # Normaliza el nombre:
-        # - trim() elimina espacios al inicio y final
-        # - regexp_replace() elimina espacios dobles internos
-        # - initcap() pone cada palabra en Title Case
-        .withColumn(
-            'nombre',
-            F.initcap(
-                F.regexp_replace(
-                    F.trim(F.col('nombre')),
-                    r"\s+",
-                    " "
+
+
+```python
+df_superficie = (
+    df_monetario
+    # Convertir Carpet Area
+    .withColumn(
+        "Carpet_Area",
+        F.split(F.col("Carpet_Area"), " ")[0].cast("integer")
+    )
+    .withColumn("Area_m2", F.col("Carpet_Area") * 0.0929)
+)
+
+```
+
+
+```python
+df_superficie.select("Carpet_Area", "Area_m2").show(3)
+```
+
+    +-----------+------------------+
+    |Carpet_Area|           Area_m2|
+    +-----------+------------------+
+    |        500|46.449999999999996|
+    |        473|           43.9417|
+    |        779|           72.3691|
+    +-----------+------------------+
+    only showing top 3 rows
+    
+
+
+## 2. Objetivos de análisis estadístico
+
+Utilizando las **nuevas columnas transformadas** (`Amount_USD` y `Area_m2`), calcula e interpreta las siguientes métricas de distribución usando PySpark:
+
+
+
+```python
+df_superficie.select("Amount_USD", "Area_m2").show(3)
+```
+
+    +----------+------------------+
+    |Amount_USD|           Area_m2|
+    +----------+------------------+
+    |   50400.0|46.449999999999996|
+    |  117600.0|           43.9417|
+    |  168000.0|           72.3691|
+    +----------+------------------+
+    only showing top 3 rows
+    
+
+
+### 2.1. Medidas de dispersión (varianza y desviación estándar)
+
+- Calcula la varianza y la desviación estándar de la columna `Amount_USD`.
+- **Pregunta:** Si la desviación estándar es muy alta en comparación con el precio medio (por ejemplo, si la media es $100k y la desviación es $80k), ¿podemos decir que el "precio promedio" es un buen representante del mercado? ¿O los precios son demasiado dispares para confiar en el promedio?
+
+- **Respuesta**:
+    - No. Cuando la desviación estándar es muy alta respecto a la media, el promedio deja de representar bien al mercado.
+    - Sí. Una desviación tan grande indica que los precios son muy dispares y no se puede confiar en la media como medida central.
+
+
+```python
+stats = df_superficie.select(
+                F.variance("Amount_USD").alias("varianza"),
+                F.stddev("Amount_USD").alias("desviacion"),
+                F.mean("Amount_USD").alias("Media"),
+                F.kurtosis("Amount_USD").alias("curtosis")
+            )
+
+stats.show(truncate=False)
+```
+
+    [Stage 93:=======>                                                  (1 + 7) / 8]
+
+    +---------------------+-----------------+-----------------+-----------------+
+    |varianza             |desviacion       |Media            |curtosis         |
+    +---------------------+-----------------+-----------------+-----------------+
+    |2.2368142798731815E11|472949.7097866941|143727.1412747055|91491.17725573125|
+    +---------------------+-----------------+-----------------+-----------------+
+    
+
+
+                                                                                    
+
+
+```python
+var, desv, med , cur = stats.collect()[0]
+var
+```
+
+                                                                                    
+
+
+
+
+    223681427987.31815
+
+
+
+### 2.2. Medidas de Forma (Skewness y Kurtosis)
+
+- Calcule el `skewness` (asimetría) y la `kurtosis` (curtosis) de `Amount_USD`.
+- **Pregunta:** Suponiendo que has obtenido un valor positivo, ¿qué significa esto para el negocio? ¿Hay más oferta de casas "baratas" con algunas pocas mansiones ultra-caras, o hay muchas casas caras y pocas baratas?
+
+    - **Respuesta**: Un skewness positivo indica que hay muchas casas baratas y unas pocas propiedades extremadamente caras que estiran la distribución hacia la derecha.
+
+- **Pregunta:** Supón que obtienes una kurtosis superior a 3. ¿Deberíamos preocuparnos por la presencia de datos erróneos o propiedades de lujo extremo que podrían distorsionar nuestros análisis futuros?
+
+    - **Respuesta**: Sí. Una kurtosis mayor a 3 sugiere colas pesadas, lo que puede indicar outliers, datos erróneos o propiedades de lujo extremo que podrían distorsionar futuros análisis y modelos.
+
+
+
+```python
+forma = df_superficie.select(
+                F.skewness("Amount_USD").alias("asimetria"),
+                F.kurtosis("Amount_USD").alias("curtosis")
+        ).show(truncate=False)
+
+```
+
+    [Stage 99:=======>                                                  (1 + 7) / 8]
+
+    +-----------------+-----------------+
+    |asimetria        |curtosis         |
+    +-----------------+-----------------+
+    |270.7690536208719|91491.17725573125|
+    +-----------------+-----------------+
+    
+
+
+                                                                                    
+
+## 3. Interpretación para IA
+
+Redacta un breve informe técnico respondiendo a estas situaciones de modelado:
+
+### 3.1.- **Pre-procesamiento para redes neuronales:** 
+ 
+Observando la *desviación estándar* de `Amount_USD` (precio) frente a la de `Area_m2` (superficie), notará que tienen escalas muy diferentes (miles de dólares vs. decenas de metros). Realiza los pasos necesarios para homogeneizar las escalas de ambas columnas.
+
+
+
+```python
+df_superficie.select(
+    F.stddev("Amount_USD").alias("Desviavion_Amount_USD"),
+    F.stddev("Area_m2").alias("Desviacion_Area_m2")
+).show(truncate=False)
+
+```
+
+    [Stage 102:===================================>                     (5 + 3) / 8]
+
+    +---------------------+------------------+
+    |Desviavion_Amount_USD|Desviacion_Area_m2|
+    +---------------------+------------------+
+    |472949.7097866941    |283.10876647919014|
+    +---------------------+------------------+
+    
+
+
+                                                                                    
+
+
+```python
+stats_2 = df_superficie.select(
+                F.variance("Area_m2").alias("varianza_2"),
+                F.stddev("Area_m2").alias("desviacion_2"),
+                F.mean("Area_m2").alias("media_2")
+            )
+
+stats_2.show(truncate=False)
+```
+
+    [Stage 105:=======>                                                 (1 + 7) / 8]
+
+    +----------------+------------------+------------------+
+    |varianza_2      |desviacion_2      |media_2           |
+    +----------------+------------------+------------------+
+    |80150.5736573686|283.10876647919014|111.48601082360713|
+    +----------------+------------------+------------------+
+    
+
+
+                                                                                    
+
+
+```python
+var_2, desv_2, med_2 = stats_2.collect()[0]
+var_2
+```
+
+                                                                                    
+
+
+
+
+    80150.5736573686
+
+
+
+
+```python
+df_scaled = (df_superficie
+                .withColumn(
+                    "z-score(Amount_USD)",
+                    (F.col("Amount_USD") - med ) / desv
+                )
+                .withColumn(
+                    "z-score(Area_m2)",
+                    (F.col("Area_m2") - med_2 ) / desv_2
                 )
             )
-        )
+df_scaled.select("Amount_USD", "z-score(Amount_USD)","Area_m2","z-score(Area_m2)").show(5)
+```
 
-        # Normaliza la dirección:
-        # - Primero reemplaza abreviaturas comunes
-        # - Luego elimina espacios dobles y aplica Title Case
-        .withColumn(
-            'direccion',
-            F.initcap(
-                F.regexp_replace(
-                    F.regexp_replace(
-                        F.regexp_replace(
-                            F.trim(F.col('direccion')),
-                            r"(?i)^c\/", "Calle "
-                        ),
-                        r"(?i)^avda\.?", "Avenida "
-                    ),
-                    r"\s+",
-                    " "
-                )
+    +----------+--------------------+------------------+--------------------+
+    |Amount_USD| z-score(Amount_USD)|           Area_m2|    z-score(Area_m2)|
+    +----------+--------------------+------------------+--------------------+
+    |   50400.0| -0.1973299472301128|46.449999999999996|-0.22972093599364965|
+    |  117600.0|-0.05524295867839553|           43.9417|-0.23858078173842762|
+    |  168000.0| 0.05132228273539241|           72.3691|-0.13816919663094365|
+    |   30000.0| -0.2404634973261698|49.236999999999995| -0.2198766629438963|
+    |  192000.0| 0.10206763578957714|58.991499999999995|-0.18542170726975965|
+    +----------+--------------------+------------------+--------------------+
+    only showing top 5 rows
+    
+
+
+### 3.2.- **Gestión de outliers (Kurtosis):**
+
+Al calcular la kurtosis de la columna de precios (Amount_USD), puede que obtengas un valor muy alto (mayor a 3, e incluso superior a 10). Si no fuera así supondremos que lo es.
+
+Esto indica una distribución "leptocúrtica" con "colas pesadas". En el contexto de Big Data, esto significa que unos pocos registros extremos (mansiones de lujo o errores de entrada) están distorsionando la media y la varianza, lo que podría arruinar el entrenamiento de futuros modelos de Machine Learning.
+
+Debes **normalizar** la distribución aplicando una técnica de clipping eliminando los extremos superiores, para ello sigue estos pasos:
+
+**Identifica el límite**
+
+En entornos distribuidos, calcular un percentil exacto es computacionalmente muy costoso (requiere ordenar todos los datos). PySpark utiliza algoritmos de aproximación (como [Greenwald-Khanna](https://aakinshin.net/posts/greenwald-khanna-quantile-estimator/)). 
+
+Vas a calcular el percentil 99 para eliminar todos los valores que lo superen. En PySpark se hace con el método [`.approxQuantile("Amount_USD", [0.99], 0.01)`](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.approxQuantile.html). Este método devuelve una lista, por lo que deberás extraer el primer valor. El tercer parámetro (0.01) es la tolerancia de error permitida.
+
+**Aplica el filtro**
+
+Genera un nuevo DataFrame llamado `df_limpio` que excluya las propiedades que superen ese precio límite calculado (quédate con el 99% de los datos más "normales").
+
+**Verificación**
+
+Vuelve a calcular la kurtosis, la media y la stddev sobre este nuevo DataFrame `df_limpio`.
+
+**Pregunta**: comparando los resultados antes y después del filtro: ¿Cuánto ha bajado la curtosis? ¿Ha cambiado drásticamente el precio medio al eliminar solo el 1% de los datos? Reflexiona sobre la sensibilidad de la media aritmética frente a los outliers en grandes volúmenes de datos.
+
+**Respuesta**:
+ - La curtosis bajo mucho, pasó de 91,491 a 2.43, lo que indica que concentraba outliers muy extremos.
+ - La bajada de la media no es tan extrema como la curtosis, pero sí es un cambio claramente significativo para solo un 2% de datos.
+ - La media aritmética sigue siendo muy sensible a pocos valores extremos, incluso con muchos datos, un pequeño grupo de outliers puede desplazarla de forma apreciable.
+
+
+```python
+limite = df_scaled.approxQuantile("Amount_USD", [0.98], 0.01)[0]
+limite
+
+```
+
+                                                                                    
+
+
+
+
+    522000.0
+
+
+
+
+```python
+df_limpio = (df_scaled
+                 .filter(F.col("Amount_USD") < limite)
             )
-        )
+```
 
-        # Código postal:
-        # - Asegura string
-        # - Rellena con ceros a la izquierda hasta 5 caracteres
-        .withColumn(
-            'c_postal',
-            F.lpad(F.col('c_postal').cast("string"), 5, "0")
-        )
 
-        # Normaliza provincia, municipio y localidad:
-        # - trim() elimina espacios
-        # - initcap() pone Title Case
-        .withColumn('provincia', F.initcap(F.trim(F.col('provincia'))))
-        .withColumn('municipio', F.initcap(F.trim(F.col('municipio'))))
-        .withColumn('localidad', F.initcap(F.trim(F.col('localidad'))))
-
-        # Nucleo:
-        # - Si está vacío o nulo, usar localidad
-        .withColumn(
-            'nucleo',
-            F.when(
-                (F.col('nucleo').isNull()) | (F.trim(F.col('nucleo')) == ""),
-                F.col('localidad')
-            ).otherwise(
-                F.initcap(F.trim(F.col('nucleo')))
+```python
+stats_3 = df_limpio.select(
+                F.kurtosis("Amount_USD").alias("curtosis"),
+                F.stddev("Amount_USD").alias("desviacion"),
+                F.mean("Amount_USD").alias("Media")
             )
-        )
 
-        # Selección final
-        #.select(
-         #   'nombre', 'direccion', 'c_postal',
-          #  'provincia', 'municipio', 'localidad', 'nucleo'
-        #)
+stats_3.show(truncate=False)
+```
+
+    [Stage 114:=======>                                                 (1 + 7) / 8]
+
+    +-----------------+-----------------+------------------+
+    |curtosis         |desviacion       |Media             |
+    +-----------------+-----------------+------------------+
+    |2.433184871430435|98492.60499549586|123933.06611560707|
+    +-----------------+-----------------+------------------+
+    
+
+
+                                                                                    
+
+
+```python
+stats.show(truncate=False)
+```
+
+    [Stage 117:=======>                                                 (1 + 7) / 8]
+
+    +---------------------+-----------------+-----------------+-----------------+
+    |varianza             |desviacion       |Media            |curtosis         |
+    +---------------------+-----------------+-----------------+-----------------+
+    |2.2368142798731815E11|472949.7097866941|143727.1412747055|91491.17725573125|
+    +---------------------+-----------------+-----------------+-----------------+
+    
+
+
+                                                                                    
+
+## 4. Análisis de Segmentos (Grouping & Aggregation)
+
+Algo que nos puede ocurrir al realizar el análisis estadístico sobre el dataset completo es que las métricas globales calculadas están "sucias" porque mezclan tipos de propiedades muy diferentes (no es justo comparar un estudio de 1 habitación con un ático de 4 habitaciones).
+
+Vamos a refinar el análisis estadístico agrupando los datos por categorías clave.
+
+### 4.1.- **Ingeniería de variable (Extracción de `BHK` - Bedroom-Hall-Kitchen):**
+
+- La columna `Title` contiene información como *"1 BHK Ready to Occupy..."* o *"2 BHK..."*.
+- Crea una nueva columna llamada `Num_Bedrooms` extrayendo el número antes de "BHK"
+
+
+
+
+```python
+df_bhk = (
+    df_limpio
+    .withColumn(
+        "Num_Bedrooms",
+        F.split(F.col("Title"), " ")[0].cast("int")
+    )
 )
-
-df_B.show(3)
 
 ```
 
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|telefono_1|telefono_2|telefono_3|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|column_27|            posicion|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|     NULL|          NULL| NULL|Bernardo Moro Men...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|Pola De Somiedo|Pola De Somiedo| 616367277|      NULL|      NULL|bernardomoro@hotm...|                NULL|     NULL|       NULL|  NULL|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|        3|          NULL| NULL|        La Sastrería|Calle Veintiocho ...|   05296|    Ávila|  Adanero|        Adanero|        Adanero| 920307158| 606945069| 609289521|                NULL|www.lasastreriade...|     NULL|       NULL|     6|        NULL|       NULL|                                 NULL|     NULL|                NULL|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|        4|          NULL| NULL|         Las Hazanas|       Plaza Mayor 4|   05296|    Ávila|  Adanero|        Adanero|        Adanero| 655099974|      NULL|      NULL|lashazanas@hotmai...|                NULL|     NULL|       NULL|     8|  -4.6033331| 40.9438881|                                 NULL|     NULL|40.9438881, -4.60...|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+----------+----------+----------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+
+
+```python
+df_bhk.select("Num_Bedrooms", "Title").show(3)
+```
+
+    +------------+--------------------+
+    |Num_Bedrooms|               Title|
+    +------------+--------------------+
+    |           1|1 BHK Ready to Oc...|
+    |           2|2 BHK Ready to Oc...|
+    |           2|2 BHK Ready to Oc...|
+    +------------+--------------------+
     only showing top 3 rows
     
 
 
-### C. Contacto 
+### 4.2.- **Cálculo de estadísticas por grupo:**
 
-| Campo original               | Transformación requerida |
-| ---------------------------- | --- |
-| **`telefono_1`, `_2`, `_3`** | 1. Eliminar espacios internos (ej: "920 206"  "920206").<br>2. Crear una nueva columna llamada `telefonos_contacto` de tipo **Array** que contenga los teléfonos no nulos. <br>3. Eliminar las columnas originales `telefono_1`, `2` y `3`. |
-| **`email`** | Convertir a **minúsculas**. Validar con una expresión regular simple si contiene un "@". Si no es válido, convertir a `null`. |
-| **`web`** | Convertir a **minúsculas**. Comprobar si empieza por "http://" o "https://". Si no tiene protocolo y el campo no está vacío, añadir "https://" al principio. |
-
+- Agrupa los datos por `Num_Bedrooms` (ej. 1 BHK, 2 BHK, 3 BHK).
+- Para cada grupo, calcula simultáneamente: `Mean`, `StdDev` y `Skewness` del precio (`Amount_USD`).
 
 
 
 ```python
-from pyspark.sql import functions as F
-from pyspark.sql.functions import col
-
-df_C = (
-    df_B
-
-        # Limpieza de teléfonos:
-        # - trim() elimina espacios al inicio y final
-        # - regexp_replace() elimina espacios internos
-        .withColumn('telefono_1', F.regexp_replace(F.trim(col('telefono_1')), r"\s+", ""))
-        .withColumn('telefono_2', F.regexp_replace(F.trim(col('telefono_2')), r"\s+", ""))
-        .withColumn('telefono_3', F.regexp_replace(F.trim(col('telefono_3')), r"\s+", ""))
-
-        # Construcción del array telefonos_contacto:
-        # - array() crea un array con los 3 teléfonos
-        # - filter() elimina valores nulos o vacíos
-        .withColumn(
-            'telefonos_contacto',
-            F.expr("""
-                filter(
-                    array(telefono_1, telefono_2, telefono_3),
-                    x -> x is not null AND x != ''
-                )
-            """)
-        )
-
-        # Normalización del email:
-        # - lower() convierte a minúsculas
-        # - trim() elimina espacios
-        # - rlike() valida que contenga '@'
-        .withColumn(
-            'email',
-            F.when(
-                F.lower(F.trim(col('email'))).rlike(r".+@.+"),
-                F.lower(F.trim(col('email')))
-            ).otherwise(F.lit(None))
-        )
-
-        # Normalización del campo web:
-        # - lower() convierte a minúsculas
-        # - trim() elimina espacios
-        # - when() añade https:// si no tiene protocolo
-        .withColumn(
-            'web',
-            F.when(
-                (F.trim(col('web')) != "") &
-                (~F.lower(F.trim(col('web'))).rlike(r"^https?://")),
-                F.concat(F.lit("https://"), F.lower(F.trim(col('web'))))
-            ).otherwise(
-                F.lower(F.trim(col('web')))
-            )
-        )
-
-        # Eliminación de columnas originales de teléfono
-        .drop('telefono_1', 'telefono_2', 'telefono_3')
-
-        # Selección final
-        #.select('telefonos_contacto', 'email', 'web')
+df_stats_4 = (
+    df_bhk
+    .groupBy("Num_Bedrooms")
+    .agg(
+        F.mean("Amount_USD").alias("Media"),
+        F.stddev("Amount_USD").alias("Desviacion"),
+        F.skewness("Amount_USD").alias("Asimetria")
+    )
+    .orderBy("Num_Bedrooms")
 )
 
-df_C.show(3)
-
-```
-
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|column_27|            posicion|  telefonos_contacto|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|     NULL|          NULL| NULL|Bernardo Moro Men...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|Pola De Somiedo|Pola De Somiedo|bernardomoro@hotm...|                NULL|     NULL|       NULL|  NULL|        NULL|       NULL|                                 NULL|     NULL|                NULL|         [616367277]|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|        3|          NULL| NULL|        La Sastrería|Calle Veintiocho ...|   05296|    Ávila|  Adanero|        Adanero|        Adanero|                NULL|https://www.lasas...|     NULL|       NULL|     6|        NULL|       NULL|                                 NULL|     NULL|                NULL|[920307158, 60694...|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|        4|          NULL| NULL|         Las Hazanas|       Plaza Mayor 4|   05296|    Ávila|  Adanero|        Adanero|        Adanero|lashazanas@hotmai...|                NULL|     NULL|       NULL|     8|  -4.6033331| 40.9438881|                                 NULL|     NULL|40.9438881, -4.60...|         [655099974]|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    only showing top 3 rows
-    
-
-
-### D. Datos cuantitativos y Lógicos
-
-| Campo original | Transformación requerida |
-| --- | --- |
-| **`plazas`** | Castear a tipo **Integer**. Los valores nulos deben ser convertidos a `0`. |
-| **`accesible...`** | (Columna `accesible_a_personas_con_discapacidad`). Convertir a tipo **Boolean**. <br>Si el valor es "Si" (o variantes como "si"), asignar `True`.<br>Cualquier otro caso (incluido nulo), asignar `False`. |
-| **`q_calidad`, `posada_real`, `especialidades`** | Rellenar valores nulos con el string "No aplica" o "Sin información". |
-
-
-
-```python
-from pyspark.sql import functions as F
-from pyspark.sql.functions import col
-
-df_D = (
-    df_C
-
-        # Plazas:
-        # - cast() convierte a Integer
-        # - coalesce() reemplaza nulos por 0
-        .withColumn(
-            'plazas',
-            F.coalesce(col('plazas').cast('int'), F.lit(0))
-        )
-
-        # Accesibilidad:
-        # - lower() para comparar en minúsculas
-        # - when() asigna True si el valor es "si"
-        # - otherwise() asigna False
-        .withColumn(
-            'accesible_a_personas_con_discapacidad',
-            F.when(
-                F.lower(F.trim(col('accesible_a_personas_con_discapacidad'))) == "si",
-                F.lit(True)
-            ).otherwise(F.lit(False))
-        )
-
-        # Campos cualitativos con nulos:
-        # - fillna() aplica a varias columnas
-        .fillna(
-            {
-                'q_calidad': 'No aplica',
-                'posada_real': 'No aplica',
-                'especialidades': 'No aplica'
-            }
-        )
-
-        # Selección final
-        #.select(
-         #   'plazas',
-          #  'accesible_a_personas_con_discapacidad',
-          #  'q_calidad',
-           # 'posada_real',
-            #'especialidades'
-        #)
-)
-
-df_D.show(3)
-
-```
-
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|column_27|            posicion|  telefonos_contacto|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|     NULL|     No aplica| NULL|Bernardo Moro Men...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|Pola De Somiedo|Pola De Somiedo|bernardomoro@hotm...|                NULL|No aplica|  No aplica|     0|        NULL|       NULL|                                false|     NULL|                NULL|         [616367277]|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|        3|     No aplica| NULL|        La Sastrería|Calle Veintiocho ...|   05296|    Ávila|  Adanero|        Adanero|        Adanero|                NULL|https://www.lasas...|No aplica|  No aplica|     6|        NULL|       NULL|                                false|     NULL|                NULL|[920307158, 60694...|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|        4|     No aplica| NULL|         Las Hazanas|       Plaza Mayor 4|   05296|    Ávila|  Adanero|        Adanero|        Adanero|lashazanas@hotmai...|                NULL|No aplica|  No aplica|     8|  -4.6033331| 40.9438881|                                false|     NULL|40.9438881, -4.60...|         [655099974]|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+---------+--------------------+--------------------+
-    only showing top 3 rows
-    
-
-
-### E. Geolocalización
-
-Hay tres columnas relacionadas: `gps_longitud`, `gps_latitud` y `posicion`.
-
-A veces `gps_longitud` y `gps_latitud` están vacías, pero la información está en `posicion` (formato "lat, long"). A veces `posicion` está vacía pero las columnas individuales tienen datos.
-
-1. **Limpieza:** asegurar que el separador decimal sea un punto (`.`) y no una coma.
-2. **Relleno:**
-   - Si `gps_latitud` es nula, intentar extraerla de la primera parte de la columna `posicion` (separando por la coma).
-   - Si `gps_longitud` es nula, intentar extraerla de la segunda parte de la columna `posicion`.
-3. **Casting:** convertir las columnas finales `latitud` y `longitud` a tipo **Double**.
-4. **Eliminación:** eliminar la columna `posicion` y `column_27`  al finalizar.
-
-
-
-```python
-from pyspark.sql import functions as F
-from pyspark.sql.functions import col
-
-df_E = (
-    df_D
-
-        # Reemplaza comas decimales por puntos
-        .withColumn('gps_latitud',  F.regexp_replace('gps_latitud',  ",", "."))
-        .withColumn('gps_longitud', F.regexp_replace('gps_longitud', ",", "."))
-        .withColumn('posicion',     F.regexp_replace('posicion',     ",", "."))
-
-        # Extrae latitud desde posicion si gps_latitud está vacía
-        .withColumn(
-            'gps_latitud',
-            F.when(
-                (F.col('gps_latitud').isNull()) | (F.trim(F.col('gps_latitud')) == ""),
-                F.trim(F.split(F.col('posicion'), "\\s+").getItem(0))
-            ).otherwise(F.col('gps_latitud'))
-        )
-
-        # Extrae longitud desde posicion si gps_longitud está vacía
-        .withColumn(
-            'gps_longitud',
-            F.when(
-                (F.col('gps_longitud').isNull()) | (F.trim(F.col('gps_longitud')) == ""),
-                F.trim(F.split(F.col('posicion'), "\\s+").getItem(1))
-            ).otherwise(F.col('gps_longitud'))
-        )
-
-        # Casting final
-        .withColumn('gps_latitud',  F.col('gps_latitud').cast('double'))
-        .withColumn('gps_longitud', F.col('gps_longitud').cast('double'))
-
-        # Elimina columnas auxiliares
-        .drop('posicion', 'column_27')
-)
-df_E.show(3)
-```
-
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+--------------------+
-    |     establecimiento|n_registro|codigo|                tipo|categoria|especialidades|clase|              nombre|           direccion|c_postal|provincia|municipio|      localidad|         nucleo|               email|                 web|q_calidad|posada_real|plazas|gps_longitud|gps_latitud|accesible_a_personas_con_discapacidad|  telefonos_contacto|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+--------------------+
-    |      Turismo Activo| 47/000047|  NULL|Profesional de Tu...|     NULL|     No aplica| NULL|Bernardo Moro Men...|Calle Rio Somiedo...|   33840| Asturias|  Somiedo|Pola De Somiedo|Pola De Somiedo|bernardomoro@hotm...|                NULL|No aplica|  No aplica|     0|        NULL|       NULL|                                false|         [616367277]|
-    |Alojam. Turismo R...| 05/000788|  NULL|Casa Rural de Alq...|        3|     No aplica| NULL|        La Sastrería|Calle Veintiocho ...|   05296|    Ávila|  Adanero|        Adanero|        Adanero|                NULL|https://www.lasas...|No aplica|  No aplica|     6|        NULL|       NULL|                                false|[920307158, 60694...|
-    |Alojam. Turismo R...| 05/000696|  NULL|Casa Rural de Alq...|        4|     No aplica| NULL|         Las Hazanas|       Plaza Mayor 4|   05296|    Ávila|  Adanero|        Adanero|        Adanero|lashazanas@hotmai...|                NULL|No aplica|  No aplica|     8|  -4.6033331| 40.9438881|                                false|         [655099974]|
-    +--------------------+----------+------+--------------------+---------+--------------+-----+--------------------+--------------------+--------+---------+---------+---------------+---------------+--------------------+--------------------+---------+-----------+------+------------+-----------+-------------------------------------+--------------------+
-    only showing top 3 rows
-    
-
-
-## 4. Resultado esperado
-
-El dataframe resultante debe cumplir con este esquema (aproximado):
-
-```text
-root
- |-- id_registro: string (nullable = true)
- |-- establecimiento: string (nullable = true)
- |-- categoria_normalizada: string (nullable = true)
- |-- nombre: string (nullable = true)
- |-- direccion_completa: struct (direccion, cp, municipio, provincia)
- |-- contacto: struct (telefonos (Array), email, web)
- |-- capacidad: integer (nullable = false)
- |-- es_accesible: boolean (nullable = false)
- |-- coordenadas: struct (latitud, longitud)
-
 ```
 
 
 ```python
-df_E.printSchema()
-
+df_stats_4.show()
 ```
 
-    root
-     |-- establecimiento: string (nullable = true)
-     |-- n_registro: string (nullable = true)
-     |-- codigo: string (nullable = true)
-     |-- tipo: string (nullable = true)
-     |-- categoria: string (nullable = true)
-     |-- especialidades: string (nullable = false)
-     |-- clase: string (nullable = true)
-     |-- nombre: string (nullable = true)
-     |-- direccion: string (nullable = true)
-     |-- c_postal: string (nullable = true)
-     |-- provincia: string (nullable = true)
-     |-- municipio: string (nullable = true)
-     |-- localidad: string (nullable = true)
-     |-- nucleo: string (nullable = true)
-     |-- email: string (nullable = true)
-     |-- web: string (nullable = true)
-     |-- q_calidad: string (nullable = false)
-     |-- posada_real: string (nullable = false)
-     |-- plazas: integer (nullable = false)
-     |-- gps_longitud: double (nullable = true)
-     |-- gps_latitud: double (nullable = true)
-     |-- accesible_a_personas_con_discapacidad: boolean (nullable = false)
-     |-- telefonos_contacto: array (nullable = false)
-     |    |-- element: string (containsNull = true)
+    [Stage 136:=======>                                                 (1 + 7) / 8]
+
+    +------------+------------------+------------------+--------------------+
+    |Num_Bedrooms|             Media|        Desviacion|           Asimetria|
+    +------------+------------------+------------------+--------------------+
+    |        NULL| 57512.72727272727| 73510.61074590133|   2.980624321638696|
+    |           1|42328.167832167834|31923.193624799565|  3.8502558006230014|
+    |           2| 73035.88543515613| 44918.51541522151|  2.2474264102046555|
+    |           3|154841.02406844302| 93764.80555647868|   1.327562573380713|
+    |           4|266713.99790763715|119459.60735656598|0.056874832557085704|
+    |           5| 356968.7031700288|119067.56120280345| -0.9636234924385035|
+    |           6|253077.55102040817|128390.71108876045| 0.47465368067230734|
+    |           7|269538.46153846156|158009.01629580898| 0.43332821947377914|
+    |           8|          196560.0|246412.57110788807|                 0.0|
+    |           9|          303000.0|125331.56027114639| 0.15506836162301418|
+    |          10|          265350.0|128209.10375521032|-0.31530187120905473|
+    +------------+------------------+------------------+--------------------+
     
 
 
+                                                                                    
 
-```python
-df_final = df_E.select(
-    col("n_registro").alias("id_registro"),
-    "establecimiento",
-    col("categoria").alias("categoria_normalizada"),
-    "nombre",
-    F.struct("direccion", col("c_postal").alias("cp"), "municipio", "provincia").alias("direccion_completa"),
-    F.struct("telefonos_contacto", "email", "web").alias("contacto"),
-    col("plazas").alias("capacidad"),
-    col("accesible_a_personas_con_discapacidad").alias("es_accesible"),
-    F.struct(col("gps_latitud").alias("latitud"), col("gps_longitud").alias("longitud")).alias("coordenadas")
-)
-```
+### 4.3. **Preguntas de análisis para el modelo:**
+
+Una vez calculadas las métricas por grupo (1 BHK, 2 BHK, etc.), responde a las siguientes preguntas sobre la estructura del mercado:
 
 
-```python
-df_final.printSchema()
-```
+#### A. Análisis de variabilidad (Desviación Estándar):
 
-    root
-     |-- id_registro: string (nullable = true)
-     |-- establecimiento: string (nullable = true)
-     |-- categoria_normalizada: string (nullable = true)
-     |-- nombre: string (nullable = true)
-     |-- direccion_completa: struct (nullable = false)
-     |    |-- direccion: string (nullable = true)
-     |    |-- cp: string (nullable = true)
-     |    |-- municipio: string (nullable = true)
-     |    |-- provincia: string (nullable = true)
-     |-- contacto: struct (nullable = false)
-     |    |-- telefonos_contacto: array (nullable = false)
-     |    |    |-- element: string (containsNull = true)
-     |    |-- email: string (nullable = true)
-     |    |-- web: string (nullable = true)
-     |-- capacidad: integer (nullable = false)
-     |-- es_accesible: boolean (nullable = false)
-     |-- coordenadas: struct (nullable = false)
-     |    |-- latitud: double (nullable = true)
-     |    |-- longitud: double (nullable = true)
-    
+Observa cómo cambia la desviación estándar de los precios a medida que aumentan las habitaciones. ¿La variabilidad se mantiene constante o se dispara en las propiedades más grandes?
+
+**Pregunta**: Si la desviación es mucho mayor en los pisos de 3 BHK que en los de 1 BHK, ¿qué nos indica esto sobre la homogeneidad del producto? 
+
+Pista: Un mercado con baja desviación sugiere que los inmuebles son muy parecidos entre sí (*commodities*). Una alta desviación sugiere que dentro de esa categoría conviven pisos "estándar" con propiedades de "ultra-lujo", haciendo que el mercado sea mucho más heterogéneo.
 
 
+**Respuesta**: Una desviación mucho mayor en 3 BHK indica que ese segmento es menos homogéneo: mezcla pisos estándar con otros de lujo, por eso los precios se dispersan más.
 
-```python
-df_final.show(3)
-```
+#### B. Confiabilidad del precio promedio:
 
-    +-----------+--------------------+---------------------+--------------------+--------------------+--------------------+---------+------------+--------------------+
-    |id_registro|     establecimiento|categoria_normalizada|              nombre|  direccion_completa|            contacto|capacidad|es_accesible|         coordenadas|
-    +-----------+--------------------+---------------------+--------------------+--------------------+--------------------+---------+------------+--------------------+
-    |  47/000047|      Turismo Activo|                 NULL|Bernardo Moro Men...|{Calle Rio Somied...|{[616367277], ber...|        0|       false|        {NULL, NULL}|
-    |  05/000788|Alojam. Turismo R...|                    3|        La Sastrería|{Calle Veintiocho...|{[920307158, 6069...|        6|       false|        {NULL, NULL}|
-    |  05/000696|Alojam. Turismo R...|                    4|         Las Hazanas|{Plaza Mayor 4, 0...|{[655099974], las...|        8|       false|{40.9438881, -4.6...|
-    +-----------+--------------------+---------------------+--------------------+--------------------+--------------------+---------+------------+--------------------+
-    only showing top 3 rows
-    
+**Pregunta**: Basándote en lo anterior, ¿en qué segmento (1 BHK o 3 BHK) dirías que el "Precio Promedio" es un indicador más fiable del valor real de una propiedad? Es decir, si tuvieras que tasar una propiedad "a ciegas" usando solo el promedio del mercado, ¿en qué tipo de apartamento tendrías más riesgo de equivocarte drásticamente por exceso o por defecto?
 
+**Respuesta**: El promedio es más fiable en 1 BHK, porque el mercado es más uniforme.
+En 3 BHK hay más riesgo de equivocarte mucho usando solo la media.
+
+#### C. Detección de anomalías de mercado (Curtosis):
+
+Compara la curtosis entre los apartamentos pequeños y los grandes.
+
+**Pregunta**: ¿Qué segmento tiene una curtosis más alta (colas más pesadas)?
+
+**Pregunta**: Si el segmento de 3 BHK tiene una curtosis muy elevada, significa que existen propiedades con precios desorbitados que rompen la norma. ¿Consideras que estas "mansiones" representan la realidad del barrio, o son excepciones que deberían analizarse en un estudio de mercado aparte para no distorsionar la visión general?
+
+**Respuesta**: El segmento con mayor curtosis tiene colas más pesadas, es decir, precios extremos.
+Si 3 BHK muestra curtosis muy alta, esas “mansiones” son excepciones, no representan al mercado típico y conviene analizarlas por separado.
 
 
 ```python

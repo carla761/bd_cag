@@ -1,3 +1,4 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:6ffc676df174144bf495fccbda78b33d336c5bafd433159d4d526bdc417b9ba9
-size 171
+# BIG DATA APLICADO
+## UT06: Procesamiento distribuido con S3
+- [PR0601: 	Capa bronce en AWS](./PR0601/Documentacion.md)
+- [PR0602: AWS Lambda](./PR0602/Documentacion.md)

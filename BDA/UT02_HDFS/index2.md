@@ -1,3 +1,5 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:7c9cb3ed32ff22d577b8b03096dfb07e57e937c1ec2b4327a96bb39734de5ca9
-size 260
+# BIG DATA
+UT02: Almacenamiento distribuido. HDFS
+- [PR0201: Instalación de Hadoop en modo pseudo-distribuido](./PR0201/Documentacion.md)
+- [PR0202: Uso del cliente HDFS](./PR0202/Documentacion.md)
+- [PR0203: Uso de cliente HDFS(2)](./PR0203/Documentacion.md)

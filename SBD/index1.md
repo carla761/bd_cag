@@ -1,5 +1,3 @@
-# SISTEMAS DE BIG DATA
-
-- [Tema 2: Almacenamiento de datos](./UT02_AlmacenamientoDatos/index2.md)
-- [Tema 3: Gestion de los datos](./UT03_GestionDatos/index2.md)
-- [Tema 5: Visualización de datos y cuadros de mando](./UT05_VisualizacionDatos/index2.md)
+version https://git-lfs.github.com/spec/v1
+oid sha256:836b6ce33bebda452b9509052ac4cc4db48123e05619788812f01f53c6373b55
+size 257

@@ -1,5 +1,3 @@
-# SISTEMAS DE BIG DATA
-## UT05: Visualización de datos y cuadros de mando	 
-
-- [PR0501: Introducción a Vega Altair](./PR0501/Documentacion.md)
-- [PR0502: Visualización multivista con Altair](./PR0502/Documentacion.md)
+version https://git-lfs.github.com/spec/v1
+oid sha256:a71533573389f7363914d76207c349e32dce9f3d86c1c3aa4d86af38ac379417
+size 226

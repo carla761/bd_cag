@@ -1,7 +1,3 @@
-# SISTEMAS DE BIG DATA
-## UT02: Almacenamiento de datos
-
-- [PR0301: Ingesta de datos de archivos CSV, JSON y Excel (I)](./PR0301/Documentacion.md)
-- [PR0302: Ingesta de datos de archivos CSV, JSON y Excel (II)](./PR0302/Documentacion.md)
-- [PR0303: Ingesta de datos de APIs REST](./PR0303/Documentacion.md)
-- [PR0304: API de YouTube](./PR0304/Documentacion.md)
+version https://git-lfs.github.com/spec/v1
+oid sha256:0663f42e5e8dd28e128c396ed524f99cc40beeed737f4a4e216aa7f468fd6141
+size 366

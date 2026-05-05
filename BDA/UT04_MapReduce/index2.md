@@ -1,6 +1,3 @@
-# BIG DATA APLICADO
-## UT02: Almacenamiento distribuido. HDFS
-- [PR0401: Contando palabras](./PR0401/Documentacion.md)
-- [PR0402: Datos del clima](./PR0402/Documentacion.md)
-- [PR0403: Análisis de logs](./PR0403/Documentacion.md)
-- [PR0404: Aplicación de patrones MapReduce](./PR0404/Documentacion.md)
+version https://git-lfs.github.com/spec/v1
+oid sha256:815c792857c8052df54eeabd6cb08f9bcdfb7ad7860d96d92c576d3779bc291c
+size 303
